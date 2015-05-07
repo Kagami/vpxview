@@ -11,7 +11,7 @@ Simple viewer of VPx (only VP9 currently) frame internals.
 ## Build
 
 ```bash
-git clone https://github.com/Kagami/vpxview
+git clone https://github.com/Kagami/vpxview.git
 cd vpxview
 cargo build --release
 ```
