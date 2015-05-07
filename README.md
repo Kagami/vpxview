@@ -1,4 +1,4 @@
-# vpxview
+# vpxview [![Build Status](https://travis-ci.org/Kagami/vpxview.svg?branch=master)](https://travis-ci.org/Kagami/vpxview)
 
 Simple viewer of VPx (only VP9 currently) frame internals.
 
