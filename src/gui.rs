@@ -1,5 +1,5 @@
 use gfx;
-use gfx::traits::*;
+use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
 use gfx::device::handle::Texture;
 use gfx::extra::canvas::Canvas;
 use gfx_device_gl as dgl;
