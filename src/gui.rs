@@ -126,15 +126,16 @@ fn show_frame(reader: &mut ivf::Reader,
               texture: &TextureT) {
     let maybe_frame = reader.next();
     update_title(reader, &canvas.output.window);
-    if maybe_frame.is_none() {
-        return println!("End of file");
-    }
-    let ivf_frame = maybe_frame.unwrap();
+    let ivf_frame = try_print!(maybe_frame, "End of file");
     match decoder.decode_many(&ivf_frame) {
         Ok(mut iter) => {
-            let image = iter.next().unwrap();
-            // TODO(Kagami): IVF frame may consist of several VPx frames.
-            assert_eq!(iter.count(), 0);
+            let image = try_print!(iter.next(), "No VPx frames in this IVF frame");
+            // TODO(Kagami): IVF frame may consist of several VPx frames, we
+            // correctly display only 1 IVF <-> 1 VPx case as for now.
+            let remaining = iter.count();
+            if remaining != 0 {
+                printerr!("Skipping {} other VPx frames", remaining);
+            }
             // TODO(Kagami): Dimensions of decoded VPx image can vary from
             // frame to frame, we can adjust texture size accordingly.
             assert_eq!(image.get_display_width(), texture.get_info().width);

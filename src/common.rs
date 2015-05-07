@@ -31,17 +31,6 @@ impl fmt::Display for Error {
     }
 }
 
-macro_rules! printerr {
-    ($fmt:expr) =>
-        (::std::io::Write
-            ::write_fmt(&mut ::std::io::stderr(), format_args!(concat!($fmt, "\n")))
-            .unwrap());
-    ($fmt:expr, $($arg:tt)*) =>
-        (::std::io::Write
-            ::write_fmt(&mut ::std::io::stderr(), format_args!(concat!($fmt, "\n"), $($arg)*))
-            .unwrap());
-}
-
 pub fn alloc<T>(size: usize) -> Box<[T]> {
     // Seems like there is no easier safe way (i.e. without losing auto memory
     // management) to allocate memory area.
@@ -62,4 +51,22 @@ pub fn get_le16(buf: &[u8]) -> u16 {
     let mut val = (buf[1] as u16) << 8;
     val |= buf[0] as u16;
     val
+}
+
+macro_rules! printerr {
+    ($fmt:expr) =>
+        (::std::io::Write
+            ::write_fmt(&mut ::std::io::stderr(), format_args!(concat!($fmt, "\n")))
+            .unwrap());
+    ($fmt:expr, $($arg:tt)*) =>
+        (::std::io::Write
+            ::write_fmt(&mut ::std::io::stderr(), format_args!(concat!($fmt, "\n"), $($arg)*))
+            .unwrap());
+}
+
+macro_rules! try_print {
+    ($expr:expr, $fmt:expr) => (match $expr {
+        ::std::option::Option::Some(val) => val,
+        ::std::option::Option::None => { return $crate::printerr!($fmt) }
+    })
 }
