@@ -1,6 +1,10 @@
 language: rust
 install:
-  - sudo apt-get install -y libvpx-dev libXxf86vm-dev
+  - sudo apt-get install -y libXxf86vm-dev
+  - sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ trusty main universe"
+  - sudo apt-get update
+  - sudo apt-get install -y libvpx-dev
+script: cargo build --verbose
 notifications:
   email:
     on_success: never
