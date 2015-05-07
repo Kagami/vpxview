@@ -76,7 +76,7 @@ source = "git+https://github.com/gfx-rs/gfx_macros#aebce705dfa63bfe1868aeda5eb4c
 [[package]]
 name = "gfx_window_glutin"
 version = "0.0.1"
-source = "git+https://github.com/gfx-rs/gfx_window_glutin#f793c918d5e1a253860382e86e9d0f0493a82fe6"
+source = "git+https://github.com/gfx-rs/gfx_window_glutin#720b1f6b25e8904dbc40c82f3f25d5e897334b02"
 dependencies = [
  "gfx 0.3.0 (git+https://github.com/gfx-rs/gfx-rs)",
  "gfx_device_gl 0.2.4 (git+https://github.com/gfx-rs/gfx_device_gl)",

@@ -3,7 +3,7 @@ use gfx::traits::*;
 use gfx::device::handle::Texture;
 use gfx::extra::canvas::Canvas;
 use gfx_device_gl as dgl;
-use gfx_window_glutin::{self, Wrap};
+use gfx_window_glutin as gfxw;
 use glutin::{CreationError, Window, WindowBuilder, Event, VirtualKeyCode, ElementState};
 use ::ivf;
 use ::vpx;
@@ -78,7 +78,7 @@ pub fn run(reader: &mut ivf::Reader, decoder: &mut vpx::Decoder) -> Result<(), E
             // window managers.
             .with_title(format!("vpxview"))
             .build());
-        gfx_window_glutin::init(window).into_canvas()
+        gfxw::init(window).into_canvas()
     };
     let batch = {
         let mesh = canvas.factory.create_mesh(VERTEX_DATA);
@@ -117,7 +117,7 @@ pub fn run(reader: &mut ivf::Reader, decoder: &mut vpx::Decoder) -> Result<(), E
     Ok(())
 }
 
-type CanvasT = Canvas<Wrap<dgl::Resources>, dgl::Device, dgl::Factory>;
+type CanvasT = Canvas<gfxw::Output<dgl::Resources>, dgl::Device, dgl::Factory>;
 type TextureT = Texture<dgl::Resources>;
 
 fn show_frame(reader: &mut ivf::Reader,
