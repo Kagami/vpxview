@@ -1,6 +1,6 @@
 language: rust
 before_install:
-  - sudo apt-get install -y libvpx-dev
+  - sudo apt-get install -y libvpx-dev freeglut3
 notifications:
   email:
     on_success: never
