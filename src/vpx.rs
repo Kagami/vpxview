@@ -164,8 +164,9 @@ impl Image {
 
             let w = (*d).d_w as usize;
             let h = (*d).d_h as usize;
-            let mut pixels: Vec<u32> = Vec::with_capacity(w * h);
-            pixels.set_len(w * h);
+            let len = w * h;
+            let mut pixels: Vec<u32> = Vec::with_capacity(len);
+            pixels.set_len(len);
             let y_step = (*d).stride[0] as usize;
             let u_step = (*d).stride[1] as usize;
             let v_step = (*d).stride[2] as usize;
@@ -178,7 +179,7 @@ impl Image {
                     let y = *(*d).planes[0].offset((y_offset + j) as isize);
                     let u = *(*d).planes[1].offset((u_offset + j / 2) as isize);
                     let v = *(*d).planes[2].offset((v_offset + j / 2) as isize);
-                    pixels[j + i * w] = Self::yuv_pixel(y, u, v);
+                    pixels[i * w + j] = Self::yuv_pixel(y, u, v);
                 }
                 y_offset += y_step;
                 if i % 2 != 0 {
@@ -189,9 +190,8 @@ impl Image {
 
             // Vec<u32> -> Box<[u8]>
             let p = pixels.as_mut_ptr() as *mut u8;
-            let new_len = pixels.len() * 4;
             mem::forget(pixels);
-            let pixels8: Vec<u8> = Vec::from_raw_parts(p, new_len, new_len);
+            let pixels8: Vec<u8> = Vec::from_raw_parts(p, len * 4, len * 4);
             pixels8.into_boxed_slice()
         }
     }
