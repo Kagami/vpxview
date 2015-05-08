@@ -4,7 +4,10 @@ use gfx::device::handle::Texture;
 use gfx::extra::canvas::Canvas;
 use gfx_device_gl as dgl;
 use gfx_window_glutin as gfxw;
-use glutin::{CreationError, Window, WindowBuilder, Event, VirtualKeyCode, ElementState};
+use glutin::{CreationError, Window, WindowBuilder};
+use glutin::Event::{Closed, KeyboardInput};
+use glutin::ElementState::Pressed;
+use glutin::VirtualKeyCode as Key;
 use ::ivf;
 use ::vpx;
 
@@ -92,26 +95,33 @@ pub fn run(reader: &mut ivf::Reader, decoder: &mut vpx::Decoder) -> Result<(), E
     let texture = &batch.param.color.0;
 
     show_frame(reader, decoder, &mut canvas, texture);
-    'main: loop {
-        // We need to pass mutable reference to canvas to `show_frame` so we
-        // need to grab all events first.
-        let events: Vec<Event> = canvas.output.window.poll_events().collect();
-        for event in events {
-            match event {
-                Event::Closed => break 'main,
-                Event::KeyboardInput(_, _, Some(VirtualKeyCode::Escape)) => break 'main,
-                Event::KeyboardInput(_, _, Some(VirtualKeyCode::Q)) => break 'main,
-                Event::KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Left)) => {
-                    // TODO(Kagami).
-                },
-                Event::KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Right)) => {
-                    show_frame(reader, decoder, &mut canvas, texture);
-                },
-                _ => {},
-            }
+    loop {
+        // Skip all pending events except the first because in some cases frame
+        // decoding may take too long so interface will be brozen because of
+        // big events queue.
+        let maybe_event = {
+            let mut iter = canvas.output.window.poll_events();
+            let ev = iter.next();
+            iter.count();  // Consume entire iterator
+            ev
+        };
+        match maybe_event {
+            Some(Closed) => break,
+            Some(KeyboardInput(Pressed, _, Some(Key::Escape))) => break,
+            Some(KeyboardInput(Pressed, _, Some(Key::Q))) => break,
+            Some(KeyboardInput(Pressed, _, Some(Key::Left))) => {
+                // TODO(Kagami).
+            },
+            Some(KeyboardInput(Pressed, _, Some(Key::Right))) => {
+                show_frame(reader, decoder, &mut canvas, texture);
+            },
+            _ => {},
         }
         canvas.clear(gfx::ClearData {color: [0.0, 0.0, 0.0, 1.0], depth: 1.0, stencil: 0});
-        canvas.draw(&batch).unwrap();
+        match canvas.draw(&batch) {
+            Err(err) => printerr!("Error occured while drawing the frame: {:?}", err),
+            Ok(_) => {},
+        }
         canvas.present();
     }
     Ok(())
