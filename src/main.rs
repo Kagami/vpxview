@@ -22,7 +22,7 @@ mod vpx;
 fn run(filename: String) -> Result<(), common::Error> {
     let mut decoder = try!(vpx::Decoder::init());
     let mut reader = try!(ivf::Reader::open(filename));
-    try!(gui::run(&mut reader, &mut decoder));
+    try!(gui::init(&mut reader, &mut decoder)).run();
     Ok(())
 }
 
