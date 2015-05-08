@@ -3,8 +3,8 @@
 use std::u16;
 use std::fmt;
 use std::ptr;
+use std::mem;
 use libc::{c_int, c_uint, c_long, c_void, c_uchar};
-use ::common;
 
 // Safe wrapper.
 
@@ -119,8 +119,20 @@ impl Image {
     }
 
     #[inline]
-    fn clamp(val: i32) -> u8 {
-        if val < 0 { 0 } else if val > 255 { 255 } else { val as u8 }
+    fn clamp0(val: i32) -> i32 {
+        (-val >> 31) & val
+    }
+
+    #[inline]
+    fn clamp255(val: i32) -> i32 {
+        (((255 - val) >> 31) | val) & 255
+    }
+
+    // Branchless min/max should be faster than 2 ifs. See `YuvPixel` from
+    // libyuv for details.
+    #[inline]
+    fn clamp(val: i32) -> u32 {
+        Self::clamp255(Self::clamp0(val)) as u32
     }
 
     // TODO(Kagami): Since we don't know which colormatrix and colorrange were
@@ -128,15 +140,18 @@ impl Image {
     // BT.709 colormatrix for dimensions bigger than 1279x719 (i.e. HD).
     // TODO(Kagami): SIMD!
     /// Convert YUV 8-bit pixel to RGBA8 (fully opacity) using BT.601 limited
-    /// range profile.
+    /// range profile. Resulting value is 4 sequential bytes representing R, G,
+    /// B and A components, in that order.
     #[inline]
-    fn yuv_pixel(y: u8, u: u8, v: u8) -> (u8, u8, u8, u8) {
+    fn yuv_pixel(y: u8, u: u8, v: u8) -> u32 {
         let (c, d, e) = (y as i32 - 16, u as i32 - 128, v as i32 - 128);
-        let r = Self::clamp((298 * c           + 409 * e + 128) >> 8);
-        let g = Self::clamp((298 * c - 100 * d - 208 * e + 128) >> 8);
-        let b = Self::clamp((298 * c + 516 * d           + 128) >> 8);
+        let y1 = 298 * c + 128;
+        let r = Self::clamp((y1           + 409 * e) >> 8);
+        let g = Self::clamp((y1 - 100 * d - 208 * e) >> 8);
+        let b = Self::clamp((y1 + 516 * d          ) >> 8);
         let a = 255;
-        (r, g, b, a)
+        // TODO(Kagami): Non-LE architectures.
+        a << 24 | b << 16 | g << 8 | r
     }
 
     /// Convert image pixels data to RGBA8 array.
@@ -149,7 +164,8 @@ impl Image {
 
             let w = (*d).d_w as usize;
             let h = (*d).d_h as usize;
-            let mut pixels: Box<[u8]> = common::alloc(w * h * 4);
+            let mut pixels: Vec<u32> = Vec::with_capacity(w * h);
+            pixels.set_len(w * h);
             let y_step = (*d).stride[0] as usize;
             let u_step = (*d).stride[1] as usize;
             let v_step = (*d).stride[2] as usize;
@@ -162,11 +178,7 @@ impl Image {
                     let y = *(*d).planes[0].offset((y_offset + j) as isize);
                     let u = *(*d).planes[1].offset((u_offset + j / 2) as isize);
                     let v = *(*d).planes[2].offset((v_offset + j / 2) as isize);
-                    let (r, g, b, a) = Self::yuv_pixel(y, u, v);
-                    pixels[j * 4 + i * w * 4    ] = r;
-                    pixels[j * 4 + i * w * 4 + 1] = g;
-                    pixels[j * 4 + i * w * 4 + 2] = b;
-                    pixels[j * 4 + i * w * 4 + 3] = a;
+                    pixels[j + i * w] = Self::yuv_pixel(y, u, v);
                 }
                 y_offset += y_step;
                 if i % 2 != 0 {
@@ -175,7 +187,12 @@ impl Image {
                 }
             }
 
-            pixels
+            // Vec<u32> -> Box<[u8]>
+            let p = pixels.as_mut_ptr() as *mut u8;
+            let new_len = pixels.len() * 4;
+            mem::forget(pixels);
+            let pixels8: Vec<u8> = Vec::from_raw_parts(p, new_len, new_len);
+            pixels8.into_boxed_slice()
         }
     }
 }
