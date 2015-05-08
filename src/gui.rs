@@ -1,8 +1,11 @@
-use gfx;
+use std::fmt;
+use gfx::{self, ProgramError};
 use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
 use gfx::device::handle::Texture;
+use gfx::device::tex::TextureError;
 use gfx::extra::canvas::Canvas;
 use gfx::batch::OwnedBatch;
+use gfx::batch::Error as BatchError;
 use gfx_device_gl as dgl;
 use gfx_window_glutin as gfxw;
 use glutin::{CreationError, WindowBuilder};
@@ -12,7 +15,41 @@ use glutin::VirtualKeyCode as Key;
 use ::ivf;
 use ::vpx;
 
-pub type Error = CreationError;
+#[derive(Debug)]
+pub enum Error {
+    GlutinCreationError(CreationError),
+    GfxProgramError(ProgramError),
+    GfxTextureError(TextureError),
+    GfxBatchError(BatchError),
+}
+
+impl From<CreationError> for Error {
+    fn from(e: CreationError) -> Error { Error::GlutinCreationError(e) }
+}
+
+impl From<ProgramError> for Error {
+    fn from(e: ProgramError) -> Error { Error::GfxProgramError(e) }
+}
+
+impl From<TextureError> for Error {
+    fn from(e: TextureError) -> Error { Error::GfxTextureError(e) }
+}
+
+impl From<BatchError> for Error {
+    fn from(e: BatchError) -> Error { Error::GfxBatchError(e) }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let descr = match *self {
+            Error::GlutinCreationError(ref err) => format!("{}", err),
+            Error::GfxProgramError(ref err) => format!("{:?}", err),
+            Error::GfxTextureError(ref err) => format!("{:?}", err),
+            Error::GfxBatchError(ref err) => format!("{:?}", err),
+        };
+        f.write_str(&descr)
+    }
+}
 
 #[vertex_format]
 #[derive(Clone, Copy)]
@@ -105,12 +142,12 @@ pub fn init<'g>(reader: &'g mut ivf::Reader,
     };
     let batch = {
         let mesh = canvas.factory.create_mesh(VERTEX_DATA);
-        let program = canvas.factory.link_program(VERTEX_SRC, FRAGMENT_SRC).unwrap();
-        let texture = canvas.factory.create_texture_rgba8(
+        let program = try!(canvas.factory.link_program(VERTEX_SRC, FRAGMENT_SRC));
+        let texture = try!(canvas.factory.create_texture_rgba8(
             reader.get_width(),
-            reader.get_height()).unwrap();
+            reader.get_height()));
         let param = ShaderParams {color: (texture, None), _t: 0};
-        OwnedBatch::new(mesh, program, param).unwrap()
+        try!(OwnedBatch::new(mesh, program, param))
     };
     Ok(Gui {
         reader: reader,
@@ -173,11 +210,17 @@ impl<'g> Gui<'g> {
                 // frame to frame, we can adjust texture size accordingly.
                 assert_eq!(image.get_display_width(), texture.get_info().width);
                 assert_eq!(image.get_display_height(), texture.get_info().height);
-                self.canvas.factory.update_texture_raw(
+                let update_result = self.canvas.factory.update_texture_raw(
                     texture,
                     &texture.get_info().to_image_info(),
                     &image.get_rgba8(),
-                    None).unwrap();
+                    None);
+                match update_result {
+                    Err(err) =>
+                        printerr!("Error occured while updating texture: {:?}", err),
+                    Ok(_) =>
+                        {},
+                }
             },
             Err(err) => {
                 printerr!("Cannot decode IVF frame: {}", err);

@@ -102,8 +102,9 @@ impl Iterator for Reader {
     type Item = Box<[u8]>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.frame_count.is_some() && self.frame_pos >= self.frame_count.unwrap() {
-            return None;
+        match self.frame_count {
+            Some(count) if self.frame_pos >= count => return None,
+            _ => {},
         }
         match read_bytes(&mut self.breader, 12) {
             Ok(fheader) => {

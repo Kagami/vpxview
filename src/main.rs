@@ -34,7 +34,7 @@ fn main() {
     }
     match run(args[1].clone()) {
         Err(err) => {
-            printerr!("{}", err);
+            printerr!("Cannot proceed due to {}", err);
             return env::set_exit_status(1);
         },
         // Success exit.

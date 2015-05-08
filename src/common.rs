@@ -67,6 +67,6 @@ macro_rules! printerr {
 macro_rules! try_print {
     ($expr:expr, $fmt:expr) => (match $expr {
         ::std::option::Option::Some(val) => val,
-        ::std::option::Option::None => { return $crate::printerr!($fmt) }
+        _ => return $crate::printerr!($fmt),
     })
 }
