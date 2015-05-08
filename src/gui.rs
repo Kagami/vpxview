@@ -28,6 +28,8 @@ struct Vertex {
 struct ShaderParams<R: gfx::Resources> {
     #[name = "t_Color"]
     color: gfx::shade::TextureParam<R>,
+    // XXX(Kagami): mute unused ToUniform import warning.
+    _t: i32,
 }
 
 static VERTEX_SRC: &'static [u8] = b"
@@ -89,7 +91,7 @@ pub fn run(reader: &mut ivf::Reader, decoder: &mut vpx::Decoder) -> Result<(), E
         let texture = canvas.factory.create_texture_rgba8(
             reader.get_width(),
             reader.get_height()).unwrap();
-        let param = ShaderParams {color: (texture, None)};
+        let param = ShaderParams {color: (texture, None), _t: 0};
         gfx::batch::OwnedBatch::new(mesh, program, param).unwrap()
     };
     let texture = &batch.param.color.0;
