@@ -143,7 +143,7 @@ impl Image {
     /// range profile. Resulting value is 4 sequential bytes representing R, G,
     /// B and A components, in that order.
     #[inline]
-    fn yuv_pixel(y: u8, u: u8, v: u8) -> u32 {
+    fn yuv_to_rgba(y: u8, u: u8, v: u8) -> u32 {
         let (c, d, e) = (y as i32 - 16, u as i32 - 128, v as i32 - 128);
         let y1 = 298 * c + 128;
         let r = Self::clamp((y1           + 409 * e) >> 8);
@@ -162,24 +162,24 @@ impl Image {
             assert_eq!((*d).fmt, vpx_img_fmt_t::VPX_IMG_FMT_I420);
             assert_eq!((*d).bit_depth, 8);
 
-            let w = (*d).d_w as usize;
-            let h = (*d).d_h as usize;
-            let len = w * h;
-            let mut pixels: Vec<u32> = Vec::with_capacity(len);
-            pixels.set_len(len);
             let y_step = (*d).stride[0] as usize;
             let u_step = (*d).stride[1] as usize;
             let v_step = (*d).stride[2] as usize;
             let mut y_offset = 0;
             let mut u_offset = 0;
             let mut v_offset = 0;
+            let w = (*d).d_w as usize;
+            let h = (*d).d_h as usize;
+            let len = w * h;
+            let mut pixels: Vec<u32> = Vec::with_capacity(len);
+            pixels.set_len(len);
 
             for i in 0..h {
                 for j in 0..w {
                     let y = *(*d).planes[0].offset((y_offset + j) as isize);
                     let u = *(*d).planes[1].offset((u_offset + j / 2) as isize);
                     let v = *(*d).planes[2].offset((v_offset + j / 2) as isize);
-                    pixels[i * w + j] = Self::yuv_pixel(y, u, v);
+                    *pixels.get_unchecked_mut(i * w + j) = Self::yuv_to_rgba(y, u, v);
                 }
                 y_offset += y_step;
                 if i % 2 != 0 {
