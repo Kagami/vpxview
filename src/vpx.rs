@@ -76,10 +76,10 @@ pub struct Frames<'c> {
     iter: Box<vpx_codec_iter_t>,
 }
 
-// NOTE(Kagami): We don't allow images to be bigger than u16 because:
+// NOTE(Kagami): We don't allow dimensions larger than u16 because:
 // 1) IVF defines 2-byte dimensions
 // 2) It's simpler to work with small values
-// 3) Bigger values are not practical anyway
+// 3) Larger values are not practical anyway
 const DIMENSION_MAX: c_uint = u16::MAX as c_uint;
 
 impl<'c> Iterator for Frames<'c> {
@@ -135,9 +135,9 @@ impl Image {
         Self::clamp255(Self::clamp0(val)) as u32
     }
 
-    // TODO(Kagami): Since we don't know which colormatrix and colorrange were
-    // used to make original file, we can try to use mpv's heuristic: use
-    // BT.709 colormatrix for dimensions bigger than 1279x719 (i.e. HD).
+    // TODO(Kagami): Use the colorspace image attribute. If it's unknown we may
+    // try mpv's heuristic: use BT.709 colormatrix for dimensions larger than
+    // 1279x719 (i.e. HD).
     // TODO(Kagami): SIMD!
     /// Convert YUV 8-bit pixel to RGBA8 (fully opacity) using BT.601 limited
     /// range profile. Resulting value is 4 sequential bytes representing R, G,
@@ -200,7 +200,7 @@ impl Image {
 impl fmt::Debug for Image {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         unsafe {
-            write!(f, "{:?}", *self.data)
+            fmt::Debug::fmt(&*self.data, f)
         }
     }
 }
@@ -238,6 +238,7 @@ enum vpx_codec_err_t {
 
 #[repr(C)]
 struct vpx_codec_ctx_t([u8; VPX_CODEC_CTX_SIZE]);
+
 impl Default for vpx_codec_ctx_t {
     fn default() -> Self {
         vpx_codec_ctx_t([0; VPX_CODEC_CTX_SIZE])
@@ -262,8 +263,6 @@ const VPX_IMG_FMT_PLANAR: isize = 0x100;
 const VPX_IMG_FMT_UV_FLIP: isize = 0x200;
 const VPX_IMG_FMT_HAS_ALPHA: isize = 0x400;
 const VPX_IMG_FMT_HIGHBITDEPTH: isize = 0x800;
-// NOTE(Kagami): It's impossible to use BitOr with enum in Rust so we define
-// some additional constants.
 const VPX_IMG_FMT_I420: isize = VPX_IMG_FMT_PLANAR | 2;
 const VPX_IMG_FMT_I422: isize = VPX_IMG_FMT_PLANAR | 5;
 const VPX_IMG_FMT_I444: isize = VPX_IMG_FMT_PLANAR | 6;
