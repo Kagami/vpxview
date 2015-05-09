@@ -1,7 +1,6 @@
 use std::fmt;
 use gfx::{self, ProgramError};
 use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
-use gfx::device::handle::Texture;
 use gfx::device::tex::TextureError;
 use gfx::extra::canvas::Canvas;
 use gfx::batch::OwnedBatch;
@@ -119,21 +118,23 @@ const BACKGROUND: gfx::ClearData = gfx::ClearData {
 
 type CanvasT = Canvas<gfxw::Output<dgl::Resources>, dgl::Device, dgl::Factory>;
 type BatchT = OwnedBatch<ShaderParams<dgl::Resources>>;
-type TextureT = Texture<dgl::Resources>;
 
-pub struct Gui<'g> {
-    reader: &'g mut ivf::Reader,
-    decoder: &'g mut vpx::Decoder,
+pub struct Gui {
+    reader: ivf::Reader,
+    decoder: vpx::Decoder,
+    viewport_width: u16,
+    viewport_height: u16,
     canvas: CanvasT,
     batch: BatchT,
 }
 
-pub fn init<'g>(reader: &'g mut ivf::Reader,
-                decoder: &'g mut vpx::Decoder) -> Result<Gui<'g>, Error> {
+pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
+    let viewport_width = reader.get_width();
+    let viewport_height = reader.get_height();
     let mut canvas = {
         // TODO(Kagami): Fullscreen.
         let window = try!(WindowBuilder::new()
-            .with_dimensions(reader.get_width() as u32, reader.get_height() as u32)
+            .with_dimensions(viewport_width as u32, viewport_height as u32)
             // Use simple initial title to allow to match the window in tiling
             // window managers.
             .with_title(format!("vpxview"))
@@ -152,14 +153,16 @@ pub fn init<'g>(reader: &'g mut ivf::Reader,
     Ok(Gui {
         reader: reader,
         decoder: decoder,
+        viewport_width: viewport_width,
+        viewport_height: viewport_height,
         canvas: canvas,
         batch: batch,
     })
 }
 
-impl<'g> Gui<'g> {
+impl Gui {
     pub fn run(&mut self) {
-        self.next_vpx_frame();
+        self.next_video_frame();
         loop {
             // Skip all pending events except the first because in some cases frame
             // decoding may take too long so interface will be brozen because of
@@ -178,7 +181,7 @@ impl<'g> Gui<'g> {
                     // TODO(Kagami).
                 },
                 Some(KeyboardInput(Pressed, _, Some(Key::Right))) => {
-                    self.next_vpx_frame();
+                    self.next_video_frame();
                 },
                 _ => {},
             }
@@ -191,8 +194,9 @@ impl<'g> Gui<'g> {
         }
     }
 
-    /// Read next IVF frame, decode VPx frame if possible and update texture.
-    fn next_vpx_frame(&mut self) {
+    /// Read next IVF frame, decode VPx frame if possible and update the
+    /// texture.
+    fn next_video_frame(&mut self) {
         let maybe_frame = self.reader.next();
         self.update_title();
         let ivf_frame = try_print!(maybe_frame, "End of file");
@@ -205,11 +209,11 @@ impl<'g> Gui<'g> {
                 if remaining != 0 {
                     printerr!("Skipping {} other VPx frames", remaining);
                 }
-                let texture = &self.batch.param.color.0;
                 // TODO(Kagami): Dimensions of decoded VPx image can vary from
                 // frame to frame, we can adjust texture size accordingly.
-                assert_eq!(image.get_display_width(), texture.get_info().width);
-                assert_eq!(image.get_display_height(), texture.get_info().height);
+                assert_eq!(image.get_display_width(), self.viewport_width);
+                assert_eq!(image.get_display_height(), self.viewport_height);
+                let texture = &self.batch.param.color.0;
                 let update_result = self.canvas.factory.update_texture_raw(
                     texture,
                     &texture.get_info().to_image_info(),

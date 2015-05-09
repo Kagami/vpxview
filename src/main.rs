@@ -20,9 +20,9 @@ mod gui;
 mod vpx;
 
 fn run(filename: String) -> Result<(), common::Error> {
-    let mut decoder = try!(vpx::Decoder::init());
-    let mut reader = try!(ivf::Reader::open(filename));
-    try!(gui::init(&mut reader, &mut decoder)).run();
+    let decoder = try!(vpx::Decoder::init());
+    let reader = try!(ivf::Reader::open(filename));
+    try!(gui::init(reader, decoder)).run();
     Ok(())
 }
 
