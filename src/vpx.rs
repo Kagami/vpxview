@@ -221,6 +221,7 @@ const VPX_DECODER_ABI_VERSION: c_int = 3 + VPX_CODEC_ABI_VERSION;
 // TODO(Kagami): Define actual struct fields instead of this hack.
 const VPX_CODEC_CTX_SIZE: usize = 56;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 enum vpx_codec_err_t {
@@ -268,6 +269,7 @@ const VPX_IMG_FMT_I422: isize = VPX_IMG_FMT_PLANAR | 5;
 const VPX_IMG_FMT_I444: isize = VPX_IMG_FMT_PLANAR | 6;
 const VPX_IMG_FMT_I440: isize = VPX_IMG_FMT_PLANAR | 7;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 enum vpx_img_fmt_t {
@@ -299,6 +301,7 @@ enum vpx_img_fmt_t {
     VPX_IMG_FMT_I44016 = VPX_IMG_FMT_I440 | VPX_IMG_FMT_HIGHBITDEPTH,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 enum vpx_color_space_t {

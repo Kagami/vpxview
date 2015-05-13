@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![feature(libc)]
 #![feature(exit_status)]
 

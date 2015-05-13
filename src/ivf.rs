@@ -49,6 +49,7 @@ pub fn read_bytes(breader: &mut io::BufReader<File>,
 pub struct Reader {
     breader: io::BufReader<File>,
     filename: String,
+    #[allow(dead_code)]
     fourcc: u32,
     width: u16,
     height: u16,
@@ -61,6 +62,7 @@ pub struct Reader {
 impl Reader {
     // It's a shame Rust doesn't have const struct fields...
     pub fn get_filename(&self) -> &str { &self.filename }
+    #[allow(dead_code)]
     pub fn get_fourcc(&self) -> u32 { self.fourcc }
     pub fn get_width(&self) -> u16 { self.width }
     pub fn get_height(&self) -> u16 { self.height }
