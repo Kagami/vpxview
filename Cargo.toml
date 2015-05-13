@@ -3,6 +3,9 @@ name = "vpxview"
 version = "0.0.0"
 authors = ["Kagami Hiiragi <kagami@genshiken.org>"]
 
+[dependencies]
+libc = "*"
+
 [dependencies.gfx]
 git = "https://github.com/gfx-rs/gfx-rs"
 

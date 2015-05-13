@@ -1,4 +1,3 @@
-#![feature(libc)]
 #![feature(exit_status)]
 
 extern crate libc;

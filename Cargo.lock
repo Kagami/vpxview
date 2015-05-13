@@ -7,6 +7,7 @@ dependencies = [
  "gfx_text 0.0.0 (git+https://github.com/PistonDevelopers/gfx_text)",
  "gfx_window_glutin 0.0.1 (git+https://github.com/gfx-rs/gfx_window_glutin)",
  "glutin 0.1.3 (git+https://github.com/tomaka/glutin)",
+ "libc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
