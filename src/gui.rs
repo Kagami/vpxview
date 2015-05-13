@@ -1,7 +1,6 @@
 use std::fmt;
 use std::marker::PhantomData;
 use gfx::{self, Resources, ProgramError};
-use gfx::attrib::Floater;
 use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
 use gfx::shade::TextureParam;
 use gfx::device::tex::TextureError;
@@ -61,18 +60,9 @@ impl fmt::Display for Error {
 }
 
 gfx_vertex!( Vertex {
-    a_Pos@ pos: [Floater<i8>; 2],
-    a_TexCoord@ tex: [Floater<u8>; 2],
+    a_Pos@ pos: [f32; 2],
+    a_TexCoord@ tex: [f32; 2],
 });
-
-impl Vertex {
-    fn new(pos: [i8; 2], tex: [u8; 2]) -> Self {
-        Vertex {
-            pos: Floater::cast2(pos),
-            tex: Floater::cast2(tex),
-        }
-    }
-}
 
 gfx_parameters!( ShaderParams/ParamsLink {
     t_Color@ color: TextureParam<R>,
@@ -102,6 +92,22 @@ static FRAGMENT_SRC: &'static [u8] = b"
     }
 ";
 
+const VERTEX_DATA: &'static [Vertex] = &[
+    // 1
+    // |\
+    // | \
+    // 2--3
+    Vertex {pos: [-1.0,  1.0], tex: [0.0, 0.0]},
+    Vertex {pos: [-1.0, -1.0], tex: [0.0, 1.0]},
+    Vertex {pos: [ 1.0, -1.0], tex: [1.0, 1.0]},
+    // 1--3
+    //  \ |
+    //   \|
+    //    2
+    Vertex {pos: [-1.0,  1.0], tex: [0.0, 0.0]},
+    Vertex {pos: [ 1.0, -1.0], tex: [1.0, 1.0]},
+    Vertex {pos: [ 1.0,  1.0], tex: [1.0, 0.0]},
+];
 const BACKGROUND: gfx::ClearData = gfx::ClearData {
     color: [0.0, 0.0, 0.0, 1.0],
     depth: 1.0,
@@ -137,24 +143,8 @@ pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
             .build());
         gfxw::init(window).into_canvas()
     };
-    let vertex_data = [
-        // 1
-        // |\
-        // | \
-        // 2--3
-        Vertex::new([-1,  1], [0, 0]),
-        Vertex::new([-1, -1], [0, 1]),
-        Vertex::new([ 1, -1], [1, 1]),
-        // 1--3
-        //  \ |
-        //   \|
-        //    2
-        Vertex::new([-1,  1], [0, 0]),
-        Vertex::new([ 1, -1], [1, 1]),
-        Vertex::new([ 1,  1], [1, 0]),
-    ];
     let batch = {
-        let mesh = canvas.factory.create_mesh(&vertex_data);
+        let mesh = canvas.factory.create_mesh(VERTEX_DATA);
         let program = try!(canvas.factory.link_program(VERTEX_SRC, FRAGMENT_SRC));
         let texture = try!(canvas.factory.create_texture_rgba8(
             reader.get_width(),
