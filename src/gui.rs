@@ -1,6 +1,9 @@
 use std::fmt;
+use std::marker::PhantomData;
 use gfx::{self, Resources, ProgramError};
+use gfx::attrib::Floater;
 use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
+use gfx::shade::TextureParam;
 use gfx::device::tex::TextureError;
 use gfx::extra::canvas::Canvas;
 use gfx::batch::OwnedBatch;
@@ -57,24 +60,23 @@ impl fmt::Display for Error {
     }
 }
 
-#[vertex_format]
-#[derive(Clone, Copy)]
-struct Vertex {
-    #[as_float]
-    #[name = "a_Pos"]
-    pos: [i8; 2],
-    #[as_float]
-    #[name = "a_TexCoord"]
-    tex: [u8; 2],
+gfx_vertex!( Vertex {
+    a_Pos@ pos: [Floater<i8>; 2],
+    a_TexCoord@ tex: [Floater<u8>; 2],
+});
+
+impl Vertex {
+    fn new(pos: [i8; 2], tex: [u8; 2]) -> Self {
+        Vertex {
+            pos: Floater::cast2(pos),
+            tex: Floater::cast2(tex),
+        }
+    }
 }
 
-#[shader_param]
-struct ShaderParams<R: Resources> {
-    #[name = "t_Color"]
-    color: gfx::shade::TextureParam<R>,
-    // XXX(Kagami): mute unused ToUniform import warning.
-    _t: i32,
-}
+gfx_parameters!( ShaderParams/ParamsLink {
+    t_Color@ color: TextureParam<R>,
+});
 
 static VERTEX_SRC: &'static [u8] = b"
     #version 120
@@ -99,23 +101,6 @@ static FRAGMENT_SRC: &'static [u8] = b"
         gl_FragColor = texture2D(t_Color, v_TexCoord);
     }
 ";
-
-const VERTEX_DATA: &'static [Vertex] = &[
-    // 1
-    // |\
-    // | \
-    // 2--3
-    Vertex {pos: [-1,  1], tex: [0, 0]},
-    Vertex {pos: [-1, -1], tex: [0, 1]},
-    Vertex {pos: [ 1, -1], tex: [1, 1]},
-    // 1--3
-    //  \ |
-    //   \|
-    //    2
-    Vertex {pos: [-1,  1], tex: [0, 0]},
-    Vertex {pos: [ 1, -1], tex: [1, 1]},
-    Vertex {pos: [ 1,  1], tex: [1, 0]},
-];
 
 const BACKGROUND: gfx::ClearData = gfx::ClearData {
     color: [0.0, 0.0, 0.0, 1.0],
@@ -152,13 +137,29 @@ pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
             .build());
         gfxw::init(window).into_canvas()
     };
+    let vertex_data = [
+        // 1
+        // |\
+        // | \
+        // 2--3
+        Vertex::new([-1,  1], [0, 0]),
+        Vertex::new([-1, -1], [0, 1]),
+        Vertex::new([ 1, -1], [1, 1]),
+        // 1--3
+        //  \ |
+        //   \|
+        //    2
+        Vertex::new([-1,  1], [0, 0]),
+        Vertex::new([ 1, -1], [1, 1]),
+        Vertex::new([ 1,  1], [1, 0]),
+    ];
     let batch = {
-        let mesh = canvas.factory.create_mesh(VERTEX_DATA);
+        let mesh = canvas.factory.create_mesh(&vertex_data);
         let program = try!(canvas.factory.link_program(VERTEX_SRC, FRAGMENT_SRC));
         let texture = try!(canvas.factory.create_texture_rgba8(
             reader.get_width(),
             reader.get_height()));
-        let param = ShaderParams {color: (texture, None), _t: 0};
+        let param = ShaderParams {color: (texture, None), _r: PhantomData};
         try!(OwnedBatch::new(mesh, program, param))
     };
     let text = try!(gfx_text::new(&mut canvas.factory).build());
@@ -253,7 +254,7 @@ impl Gui {
 
     /// Draw given lines sequentially from top to bottom.
     fn draw_lines(&mut self, start_pos: [i32; 2], lines: &[String]) {
-        let [x, mut y] = start_pos;
+        let (x, mut y) = (start_pos[0], start_pos[1]);
         for line in lines {
             self.text.draw(line, [x, y], TEXT_COLOR);
             y += TEXT_HEIGHT;

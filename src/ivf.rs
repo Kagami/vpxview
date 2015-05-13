@@ -27,7 +27,7 @@ impl fmt::Display for Error {
             Error::IoError(ref err) => format!("IO error: {}", err),
             Error::ParseError => format!("Parse error"),
         };
-        f.write_str(descr.as_str())
+        f.write_str(&descr)
     }
 }
 

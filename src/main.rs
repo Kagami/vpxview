@@ -1,13 +1,9 @@
 #![allow(dead_code)]
-#![feature(slice_patterns)]
 #![feature(libc)]
 #![feature(exit_status)]
-#![feature(convert)]
-#![feature(custom_attribute)]
-#![feature(plugin)]
-#![plugin(gfx_macros)]
 
 extern crate libc;
+#[macro_use]
 extern crate gfx;
 extern crate gfx_device_gl;
 extern crate gfx_window_glutin;
