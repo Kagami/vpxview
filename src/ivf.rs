@@ -69,7 +69,7 @@ impl Reader {
     pub fn get_frame_pos(&self) -> usize { self.frame_pos }
     pub fn get_frame_count(&self) -> Option<usize> { self.frame_count }
 
-    pub fn open(filename: String) -> Result<Reader, Error> {
+    pub fn open(filename: &str) -> Result<Reader, Error> {
         let fh = try!(File::open(&filename));
         let mut breader = io::BufReader::new(fh);
         let header = try!(read_bytes(&mut breader, 32));
@@ -90,7 +90,7 @@ impl Reader {
         }
         Ok(Reader {
             breader: breader,
-            filename: filename,
+            filename: filename.to_string(),
             fourcc: fourcc,
             width: width,
             height: height,
