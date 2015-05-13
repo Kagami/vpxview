@@ -11,10 +11,12 @@ git = "https://github.com/gfx-rs/gfx_device_gl"
 
 [dependencies.gfx_macros]
 git = "https://github.com/gfx-rs/gfx_macros"
-plugin = true
 
 [dependencies.gfx_window_glutin]
 git = "https://github.com/gfx-rs/gfx_window_glutin"
 
 [dependencies.glutin]
 git = "https://github.com/tomaka/glutin"
+
+[dependencies.gfx_text]
+git = "https://github.com/PistonDevelopers/gfx_text"

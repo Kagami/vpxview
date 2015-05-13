@@ -1,5 +1,5 @@
 use std::fmt;
-use gfx::{self, ProgramError};
+use gfx::{self, Resources, ProgramError};
 use gfx::traits::{IntoCanvas, Factory, FactoryExt, Stream};
 use gfx::device::tex::TextureError;
 use gfx::extra::canvas::Canvas;
@@ -11,6 +11,7 @@ use glutin::{CreationError, WindowBuilder};
 use glutin::Event::{Closed, KeyboardInput};
 use glutin::ElementState::Pressed;
 use glutin::VirtualKeyCode as Key;
+use gfx_text;
 use ::ivf;
 use ::vpx;
 
@@ -20,6 +21,7 @@ pub enum Error {
     GfxProgramError(ProgramError),
     GfxTextureError(TextureError),
     GfxBatchError(BatchError),
+    TextError(gfx_text::Error),
 }
 
 impl From<CreationError> for Error {
@@ -38,6 +40,10 @@ impl From<BatchError> for Error {
     fn from(e: BatchError) -> Error { Error::GfxBatchError(e) }
 }
 
+impl From<gfx_text::Error> for Error {
+    fn from(e: gfx_text::Error) -> Error { Error::TextError(e) }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let descr = match *self {
@@ -45,6 +51,7 @@ impl fmt::Display for Error {
             Error::GfxProgramError(ref err) => format!("{:?}", err),
             Error::GfxTextureError(ref err) => format!("{:?}", err),
             Error::GfxBatchError(ref err) => format!("{:?}", err),
+            Error::TextError(ref err) => format!("{:?}", err),
         };
         f.write_str(&descr)
     }
@@ -62,7 +69,7 @@ struct Vertex {
 }
 
 #[shader_param]
-struct ShaderParams<R: gfx::Resources> {
+struct ShaderParams<R: Resources> {
     #[name = "t_Color"]
     color: gfx::shade::TextureParam<R>,
     // XXX(Kagami): mute unused ToUniform import warning.
@@ -115,9 +122,12 @@ const BACKGROUND: gfx::ClearData = gfx::ClearData {
     depth: 1.0,
     stencil: 0,
 };
+const TEXT_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const TEXT_HEIGHT: i32 = 16;
 
 type CanvasT = Canvas<gfxw::Output<dgl::Resources>, dgl::Device, dgl::Factory>;
 type BatchT = OwnedBatch<ShaderParams<dgl::Resources>>;
+type TextRendererT = gfx_text::Renderer<dgl::Resources>;
 
 pub struct Gui {
     reader: ivf::Reader,
@@ -126,6 +136,7 @@ pub struct Gui {
     viewport_height: u16,
     canvas: CanvasT,
     batch: BatchT,
+    text: TextRendererT,
 }
 
 pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
@@ -150,6 +161,7 @@ pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
         let param = ShaderParams {color: (texture, None), _t: 0};
         try!(OwnedBatch::new(mesh, program, param))
     };
+    let text = try!(gfx_text::new(&mut canvas.factory).build());
     Ok(Gui {
         reader: reader,
         decoder: decoder,
@@ -157,6 +169,7 @@ pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
         viewport_height: viewport_height,
         canvas: canvas,
         batch: batch,
+        text: text,
     })
 }
 
@@ -186,10 +199,9 @@ impl Gui {
                 _ => {},
             }
             self.canvas.clear(BACKGROUND);
-            match self.canvas.draw(&self.batch) {
-                Err(err) => printerr!("Error occured while drawing the frame: {:?}", err),
-                Ok(_) => {},
-            }
+            let draw_result = self.canvas.draw(&self.batch);
+            try_print!(draw_result, "Error occured while drawing the frame: {:?}");
+            self.render_hud();
             self.canvas.present();
         }
     }
@@ -199,10 +211,10 @@ impl Gui {
     fn next_video_frame(&mut self) {
         let maybe_frame = self.reader.next();
         self.update_title();
-        let ivf_frame = try_print!(maybe_frame, "End of file");
+        let ivf_frame = maybe_print!(maybe_frame, "End of file");
         match self.decoder.decode_many(&ivf_frame) {
             Ok(mut iter) => {
-                let image = try_print!(iter.next(), "No VPx frames in this IVF frame");
+                let image = maybe_print!(iter.next(), "No VPx frames in this IVF frame");
                 // TODO(Kagami): IVF frame may consist of several VPx frames, we
                 // correctly display only 1 IVF <-> 1 VPx case as for now.
                 let remaining = iter.count();
@@ -219,12 +231,7 @@ impl Gui {
                     &texture.get_info().to_image_info(),
                     &image.get_rgba8(),
                     None);
-                match update_result {
-                    Err(err) =>
-                        printerr!("Error occured while updating texture: {:?}", err),
-                    Ok(_) =>
-                        {},
-                }
+                try_print!(update_result, "Error occured while updating texture: {:?}");
             },
             Err(err) => {
                 printerr!("Cannot decode IVF frame: {}", err);
@@ -232,15 +239,35 @@ impl Gui {
         };
     }
 
+    fn get_frame_count(&self) -> String {
+        self.reader.get_frame_count().map_or_else(|| "?".to_string(), |n| n.to_string())
+    }
+
     fn update_title(&self) {
-        let reader = &self.reader;
-        let frame_count = reader.get_frame_count()
-                                .map_or_else(|| "?".to_string(), |v| v.to_string());
         let title = format!("vpxview - {} - {}/{}",
-                            reader.get_filename(),
-                            reader.get_frame_pos(),
-                            frame_count);
-        println!("Frame {}/{}", reader.get_frame_pos(), frame_count);
+                            self.reader.get_filename(),
+                            self.reader.get_frame_pos(),
+                            self.get_frame_count());
         self.canvas.output.window.set_title(&title);
+    }
+
+    /// Draw given lines sequentially from top to bottom.
+    fn draw_lines(&mut self, start_pos: [i32; 2], lines: &[String]) {
+        let [x, mut y] = start_pos;
+        for line in lines {
+            self.text.draw(line, [x, y], TEXT_COLOR);
+            y += TEXT_HEIGHT;
+        }
+    }
+
+    /// Render some VPx frame details on canvas.
+    fn render_hud(&mut self) {
+        let lines = [
+            format!("Filename: {}", self.reader.get_filename()),
+            format!("Frame: {}/{}", self.reader.get_frame_pos(), self.get_frame_count()),
+        ];
+        self.draw_lines([10, 10], &lines);
+        let draw_result = self.text.draw_end(&mut self.canvas);
+        try_print!(draw_result, "Error occured why drawing the text: {:?}");
     }
 }

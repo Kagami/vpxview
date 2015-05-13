@@ -64,9 +64,16 @@ macro_rules! printerr {
             .unwrap());
 }
 
-macro_rules! try_print {
-    ($expr:expr, $fmt:expr) => (match $expr {
+macro_rules! maybe_print {
+    ($expr:expr, $($arg:tt)*) => (match $expr {
         ::std::option::Option::Some(val) => val,
-        _ => return $crate::printerr!($fmt),
-    })
+        _ => return $crate::printerr!($($arg)*),
+    });
+}
+
+macro_rules! try_print {
+    ($expr:expr, $($arg:tt)*) => (match $expr {
+        ::std::result::Result::Ok(val) => val,
+        ::std::result::Result::Err(err) => return $crate::printerr!($($arg)*, err),
+    });
 }

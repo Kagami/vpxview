@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![feature(slice_patterns)]
 #![feature(libc)]
 #![feature(exit_status)]
 #![feature(convert)]
@@ -11,6 +12,7 @@ extern crate gfx;
 extern crate gfx_device_gl;
 extern crate gfx_window_glutin;
 extern crate glutin;
+extern crate gfx_text;
 
 use std::env;
 #[macro_use]
