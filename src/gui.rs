@@ -9,7 +9,7 @@ use gfx::batch::OwnedBatch;
 use gfx::batch::Error as BatchError;
 use gfx_device_gl as dgl;
 use gfx_window_glutin as gfxw;
-use glutin::{CreationError, WindowBuilder};
+use glutin::{CreationError, WindowBuilder, GL_CORE};
 use glutin::Event::{Closed, KeyboardInput};
 use glutin::ElementState::Pressed;
 use glutin::VirtualKeyCode as Key;
@@ -69,11 +69,11 @@ gfx_parameters!( ShaderParams/ParamsLink {
 });
 
 static VERTEX_SRC: &'static [u8] = b"
-    #version 120
+    #version 150 core
 
-    attribute vec4 a_Pos;
-    attribute vec2 a_TexCoord;
-    varying vec2 v_TexCoord;
+    in vec4 a_Pos;
+    in vec2 a_TexCoord;
+    out vec2 v_TexCoord;
 
     void main() {
         v_TexCoord = a_TexCoord;
@@ -82,13 +82,14 @@ static VERTEX_SRC: &'static [u8] = b"
 ";
 
 static FRAGMENT_SRC: &'static [u8] = b"
-    #version 120
+    #version 150 core
 
-    varying vec2 v_TexCoord;
+    in vec2 v_TexCoord;
+    out vec4 o_Color;
     uniform sampler2D t_Color;
 
     void main() {
-        gl_FragColor = texture2D(t_Color, v_TexCoord);
+        o_Color = texture(t_Color, v_TexCoord);
     }
 ";
 
@@ -140,6 +141,8 @@ pub fn init(reader: ivf::Reader, decoder: vpx::Decoder) -> Result<Gui, Error> {
             // Use simple initial title to allow to match the window in tiling
             // window managers.
             .with_title(format!("vpxview"))
+            // To use core shader profile.
+            .with_gl(GL_CORE)
             .build());
         gfxw::init(window).into_canvas()
     };
