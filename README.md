@@ -4,7 +4,7 @@ Simple viewer of VPx (only VP9 currently) frame internals.
 
 ## Requirements
 
-* Rust 1.0.0-beta.3+
+* Rust 1.0+
 * libvpx 1.4.0+
 * OpenGL-capable system
 
